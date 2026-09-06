@@ -1,0 +1,79 @@
+import { ROLES, type Role } from "./auth.types";
+
+export const PERMISSIONS = {
+  TICKET_CREATE: "ticket:create",
+  TICKET_VIEW: "ticket:view",
+  TICKET_EDIT: "ticket:edit",
+  TICKET_ASSIGN: "ticket:assign",
+  TICKET_CLOSE: "ticket:close",
+
+  ASSET_VIEW: "asset:view",
+  ASSET_EDIT: "asset:edit",
+
+  ENGINEER_VIEW: "engineer:view",
+  ENGINEER_EDIT: "engineer:edit",
+
+  USER_VIEW: "user:view",
+  USER_EDIT: "user:edit",
+
+  ADMIN_ACCESS: "admin:access",
+} as const;
+
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+const rolePermissions: Record<Role, Permission[]> = {
+  [ROLES.ADMIN]: [
+    PERMISSIONS.TICKET_CREATE,
+    PERMISSIONS.TICKET_VIEW,
+    PERMISSIONS.TICKET_EDIT,
+    PERMISSIONS.TICKET_ASSIGN,
+    PERMISSIONS.TICKET_CLOSE,
+
+    PERMISSIONS.ASSET_VIEW,
+    PERMISSIONS.ASSET_EDIT,
+
+    PERMISSIONS.ENGINEER_VIEW,
+    PERMISSIONS.ENGINEER_EDIT,
+
+    PERMISSIONS.USER_VIEW,
+    PERMISSIONS.USER_EDIT,
+
+    PERMISSIONS.ADMIN_ACCESS,
+  ],
+
+  [ROLES.IT]: [
+    PERMISSIONS.TICKET_CREATE,
+    PERMISSIONS.TICKET_VIEW,
+    PERMISSIONS.TICKET_EDIT,
+    PERMISSIONS.TICKET_ASSIGN,
+    PERMISSIONS.TICKET_CLOSE,
+
+    PERMISSIONS.ASSET_VIEW,
+    PERMISSIONS.ASSET_EDIT,
+
+    PERMISSIONS.ENGINEER_VIEW,
+  ],
+
+  [ROLES.ENGINEER]: [
+    PERMISSIONS.TICKET_CREATE,
+    PERMISSIONS.TICKET_VIEW,
+    PERMISSIONS.TICKET_EDIT,
+    PERMISSIONS.TICKET_CLOSE,
+
+    PERMISSIONS.ASSET_VIEW,
+    PERMISSIONS.ENGINEER_VIEW,
+  ],
+
+  [ROLES.AREA_MANAGER]: [
+    PERMISSIONS.TICKET_CREATE,
+    PERMISSIONS.TICKET_VIEW,
+    PERMISSIONS.ASSET_VIEW,
+    PERMISSIONS.ENGINEER_VIEW,
+  ],
+
+  [ROLES.EMPLOYEE]: [PERMISSIONS.TICKET_CREATE, PERMISSIONS.TICKET_VIEW],
+};
+
+export function hasPermission(role: Role, permission: Permission): boolean {
+  return rolePermissions[role].includes(permission);
+}
