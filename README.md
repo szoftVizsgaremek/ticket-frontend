@@ -1,78 +1,74 @@
-# React + TypeScript + Vite
+# Ticket Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite frontend for the ticket support system. It talks to the
+`ticket-backend` Express API (see `../backend`).
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19, TypeScript, Vite 8
+- React Router v7
+- TanStack Query v5 (server state)
+- React Hook Form + Zod (forms/validation)
+- Tailwind CSS v4 + shadcn/ui (Base UI / `base-nova`)
+- lucide-react icons, next-themes (light/dark toggle)
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- **Node.js >= 22** (Vite 8 / TypeScript 6 requirement)
+- npm (comes with Node)
 
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
+## Setup
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+If you get install errors related to native packages, make sure your Node version
+matches the one above.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Run
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+The backend must be running first (it listens on `http://localhost:8080`):
 
+```bash
+cd ../backend
+npm install
+npm start
 ```
+
+Then, in this directory, start the dev server:
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:5173` and sign in with one of the seed accounts from the
+backend README, e.g.:
+
+| Role        | Email                 | Password    |
+| ----------- | --------------------- | ----------- |
+| ENGINEER    | john@tickets.example  | john123456  |
+
+## How the frontend talks to the backend
+
+- In dev, Vite proxies every `/api/*` request to `http://localhost:8080`
+  (see `server.proxy` in `vite.config.ts`). This keeps requests same-origin, so
+  CORS is not an issue.
+- Sessions are cookie-based; the API client sends `credentials: "include"`.
+- To point at a different backend, set `VITE_API_URL` (used by both the proxy
+  target and the client) — e.g. a `.env` file with `VITE_API_URL=http://localhost:9000`.
+
+## Scripts
+
+| Command           | Description                        |
+| ----------------- | ---------------------------------- |
+| `npm run dev`     | Start the Vite dev server          |
+| `npm run build`   | Type-check (`tsc -b`) + production build |
+| `npm run lint`    | Run ESLint                          |
+| `npm run preview` | Preview the production build        |
+
+## Notes
+
+- Backend data is stored in memory — it resets on backend restart.
+- This project is a UI for the `ticket-backend` API (`../backend`); on its own it
+  has nothing real to show other than the layout.
