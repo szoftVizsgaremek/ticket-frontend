@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { LoginRequest, User } from "./auth.types";
+import type { LoginRequest, RegisterRequest, User } from "./auth.types";
 
 export interface AuthContextValue {
   user: User | null;
@@ -7,6 +7,7 @@ export interface AuthContextValue {
   isLoading: boolean;
 
   login: (credentials: LoginRequest) => Promise<void>;
+  signUp: (credentials: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
 }
 

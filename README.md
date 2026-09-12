@@ -1,7 +1,7 @@
 # Ticket Frontend
 
 React + TypeScript + Vite frontend for the ticket support system. It talks to the
-`ticket-backend` Express API (see `../backend`).
+MariaDB-backed `ticket-mariadb-backend` Express API (see `../mariadb_backend`).
 
 ## Stack
 
@@ -31,8 +31,10 @@ matches the one above.
 The backend must be running first (it listens on `http://localhost:8080`):
 
 ```bash
-cd ../backend
+cd ../mariadb_backend
 npm install
+cp .env.example .env   # set your MariaDB credentials
+npm run db:setup
 npm start
 ```
 
@@ -45,9 +47,19 @@ npm run dev
 Open `http://localhost:5173` and sign in with one of the seed accounts from the
 backend README, e.g.:
 
-| Role        | Email                 | Password    |
-| ----------- | --------------------- | ----------- |
-| ENGINEER    | john@tickets.example  | john123456  |
+| Username | Password     |
+| -------- | ------------ |
+| arivera  | password123  |
+| schen    | password123  |
+
+## Pages
+
+- **/login** — sign in with username + password
+- **/register** — create an account
+- **/dashboard** — stats + critical tickets
+- **/my-tickets** — tickets you reported or are assigned to
+- **/tickets/:id** — ticket detail with comments and attachments
+- **/create-ticket** — report a new server/computer ticket
 
 ## How the frontend talks to the backend
 
@@ -66,9 +78,3 @@ backend README, e.g.:
 | `npm run build`   | Type-check (`tsc -b`) + production build |
 | `npm run lint`    | Run ESLint                          |
 | `npm run preview` | Preview the production build        |
-
-## Notes
-
-- Backend data is stored in memory — it resets on backend restart.
-- This project is a UI for the `ticket-backend` API (`../backend`); on its own it
-  has nothing real to show other than the layout.

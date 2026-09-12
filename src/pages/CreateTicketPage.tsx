@@ -1,5 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -14,326 +17,239 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createTicket } from "@/features/tickets/tickets.api";
+import { fetchUsers } from "@/features/users/users.api";
 
-const createIssueSchema = z.object({
-  projectId: z.string().min(1, "Project is required"),
-  issueTypeId: z.string().min(1, "Issue type is required"),
-  summary: z
+const createTicketSchema = z.object({
+  name: z
     .string()
-    .min(1, "Summary is required")
-    .max(255, "Summary must be less than 255 characters"),
-  description: z.string().optional(),
-  priorityId: z.string().min(1, "Priority is required"),
+    .min(1, "Name is required")
+    .max(100, "Name must be less than 100 characters"),
+  description: z
+    .string()
+    .max(250, "Description must be less than 250 characters")
+    .optional(),
+  type: z.enum(["servers", "computers"], {
+    message: "Type is required",
+  }),
+  priority: z.enum(["low", "moderate", "high", "critical"]),
   assigneeId: z.string().optional(),
-  labels: z.array(z.string()).default([]),
-  componentIds: z.array(z.string()).default([]),
-  sprintId: z.string().optional(),
-  parentIssueId: z.string().optional(),
-  dueDate: z.string().optional(),
 });
 
-type CreateIssueFormValues = z.input<typeof createIssueSchema>;
-
-const projects = [
-  { id: "ticket", name: "Ticket System" },
-  { id: "frontend", name: "Frontend" },
-  { id: "backend", name: "Backend" },
-];
-
-const issueTypes = [
-  { id: "task", name: "Task" },
-  { id: "bug", name: "Bug" },
-  { id: "story", name: "Story" },
-  { id: "epic", name: "Epic" },
-];
+type CreateTicketFormValues = z.infer<typeof createTicketSchema>;
 
 const priorities = [
-  { id: "lowest", name: "Lowest" },
   { id: "low", name: "Low" },
-  { id: "medium", name: "Medium" },
+  { id: "moderate", name: "Moderate" },
   { id: "high", name: "High" },
-  { id: "highest", name: "Highest" },
-];
+  { id: "critical", name: "Critical" },
+] as const;
 
-const assignees = [
-  { id: "user-1", name: "John Doe" },
-  { id: "user-2", name: "Jane Smith" },
-];
+function CreateTicketPage() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-type CreateIssueFormProps = {
-  onSubmit?: (data: CreateIssueFormValues) => void | Promise<void>;
-  onCancel?: () => void;
-};
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: fetchUsers,
+  });
 
-export function CreateIssueForm({ onSubmit, onCancel }: CreateIssueFormProps) {
-  const form = useForm<CreateIssueFormValues>({
-    resolver: zodResolver(createIssueSchema),
-    defaultValues: {
-      projectId: "",
-      issueTypeId: "",
-      summary: "",
-      description: "",
-      priorityId: "medium",
-      assigneeId: "",
-      labels: [],
-      componentIds: [],
-      sprintId: "",
-      parentIssueId: "",
-      dueDate: "",
+  const mutation = useMutation({
+    mutationFn: createTicket,
+    onSuccess: (ticket) => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      navigate(`/tickets/${ticket.id}`);
     },
   });
 
-  const handleSubmit = async (data: CreateIssueFormValues) => {
-    await onSubmit?.(data);
-  };
+  const form = useForm<CreateTicketFormValues>({
+    resolver: zodResolver(createTicketSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      type: "servers",
+      priority: "low",
+      assigneeId: "",
+    },
+  });
 
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Project */}
-          <FormField
-            control={form.control}
-            name="projectId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Project <span className="text-destructive">*</span>
-                </FormLabel>
-
-                <FormControl>
-                  <select
-                    {...field}
-                    className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Select project</option>
-
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Issue type */}
-          <FormField
-            control={form.control}
-            name="issueTypeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Issue type <span className="text-destructive">*</span>
-                </FormLabel>
-
-                <FormControl>
-                  <select
-                    {...field}
-                    className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Select issue type</option>
-
-                    {issueTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Summary */}
-        <FormField
-          control={form.control}
-          name="summary"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Summary <span className="text-destructive">*</span>
-              </FormLabel>
-
-              <FormControl>
-                <Input
-                  {...field}
-                  placeholder="What needs to be done?"
-                  maxLength={255}
-                />
-              </FormControl>
-
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Description */}
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-
-              <FormControl>
-                <Textarea
-                  {...field}
-                  placeholder="Describe the issue..."
-                  className="min-h-40 resize-y"
-                />
-              </FormControl>
-
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Priority */}
-          <FormField
-            control={form.control}
-            name="priorityId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Priority <span className="text-destructive">*</span>
-                </FormLabel>
-
-                <FormControl>
-                  <select
-                    {...field}
-                    className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  >
-                    {priorities.map((priority) => (
-                      <option key={priority.id} value={priority.id}>
-                        {priority.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Assignee */}
-          <FormField
-            control={form.control}
-            name="assigneeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Assignee</FormLabel>
-
-                <FormControl>
-                  <select
-                    {...field}
-                    className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Unassigned</option>
-
-                    {assignees.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Sprint */}
-          <FormField
-            control={form.control}
-            name="sprintId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Sprint</FormLabel>
-
-                <FormControl>
-                  <Input {...field} placeholder="Sprint ID" />
-                </FormControl>
-
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Parent */}
-          <FormField
-            control={form.control}
-            name="parentIssueId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Parent issue</FormLabel>
-
-                <FormControl>
-                  <Input {...field} placeholder="e.g. PROJ-123" />
-                </FormControl>
-
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Due date */}
-        <FormField
-          control={form.control}
-          name="dueDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Due date</FormLabel>
-
-              <FormControl>
-                <Input {...field} type="date" />
-              </FormControl>
-
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 border-t pt-6">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Creating..." : "Create issue"}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-}
-
-function CreateTicketPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Create Ticket</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>New Issue</CardTitle>
+          <CardTitle>New ticket</CardTitle>
         </CardHeader>
 
         <CardContent>
-          <CreateIssueForm />
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit((values) =>
+                mutation.mutate({
+                  ...values,
+                  description: values.description || "",
+                  assigneeId: values.assigneeId
+                    ? Number(values.assigneeId)
+                    : null,
+                })
+              )}
+              className="space-y-6"
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Name <span className="text-destructive">*</span>
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="What needs to be fixed?"
+                        maxLength={100}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Describe the issue..."
+                        maxLength={250}
+                        className="min-h-32 resize-y"
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Type <span className="text-destructive">*</span>
+                      </FormLabel>
+
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="servers">Servers</option>
+                          <option value="computers">Computers</option>
+                        </select>
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          {priorities.map((priority) => (
+                            <option key={priority.id} value={priority.id}>
+                              {priority.name}
+                            </option>
+                          ))}
+                        </select>
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="assigneeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assignee</FormLabel>
+
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="">Unassigned</option>
+
+                          {users?.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.name} ({user.username})
+                            </option>
+                          ))}
+                        </select>
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={mutation.isPending || form.formState.isSubmitting}
+                >
+                  {mutation.isPending ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create ticket"
+                  )}
+                </Button>
+              </div>
+
+              {mutation.isError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+                  {mutation.error instanceof Error
+                    ? mutation.error.message
+                    : "Unable to create ticket"}
+                </p>
+              )}
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

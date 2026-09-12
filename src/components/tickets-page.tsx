@@ -1,4 +1,5 @@
-import { CheckCircle2, Clock3, Ticket as TicketIcon } from "lucide-react";
+import { CheckCircle2, Clock3, Monitor, Server, Ticket as TicketIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import {
   Card,
@@ -7,21 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Ticket, TicketPriority, TicketStatus } from "@/features/tickets/ticket.types";
-
-const priorityVariant: Record<TicketPriority, "destructive" | "default" | "secondary" | "outline"> = {
-  CRITICAL: "destructive",
-  HIGH: "default",
-  MEDIUM: "secondary",
-  LOW: "outline",
-};
-
-const statusLabel: Record<TicketStatus, string> = {
-  OPEN: "Open",
-  IN_PROGRESS: "In progress",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
-};
+import type { Ticket } from "@/features/tickets/ticket.types";
+import {
+  formatDate,
+  priorityLabel,
+  priorityVariant,
+  statusLabel,
+  typeLabel,
+} from "@/features/tickets/ticket-labels";
 
 interface TicketsPageProps {
   title: string;
@@ -70,42 +64,51 @@ interface TicketRowProps {
 }
 
 function TicketRow({ ticket }: TicketRowProps) {
-  const StatusIcon =
-    ticket.status === "RESOLVED" || ticket.status === "CLOSED"
-      ? CheckCircle2
-      : ticket.status === "IN_PROGRESS"
-        ? Clock3
-        : TicketIcon;
+  const TypeIcon = ticket.type === "servers" ? Server : Monitor;
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+    <Link
+      to={`/tickets/${ticket.id}`}
+      className="flex items-center justify-between gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
+    >
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="truncate font-medium">{ticket.title}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate font-medium">{ticket.name}</p>
 
           <Badge variant={priorityVariant[ticket.priority]}>
-            {ticket.priority}
+            {priorityLabel[ticket.priority]}
           </Badge>
         </div>
 
         <p className="mt-1 truncate text-sm text-muted-foreground">
-          {ticket.number} · {ticket.description}
+          {ticket.description}
         </p>
 
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <StatusIcon className="size-3.5" />
+            {ticket.status === "closed" ? (
+              <CheckCircle2 className="size-3.5" />
+            ) : ticket.status === "in_progress" ? (
+              <Clock3 className="size-3.5" />
+            ) : (
+              <TicketIcon className="size-3.5" />
+            )}
             {statusLabel[ticket.status]}
+          </span>
+
+          <span className="inline-flex items-center gap-1">
+            <TypeIcon className="size-3.5" />
+            {typeLabel[ticket.type]}
           </span>
 
           {ticket.assignee && (
             <span>Assigned to {ticket.assignee.name}</span>
           )}
 
-          <span>Created {ticket.createdAt}</span>
+          <span>Created {formatDate(ticket.createdAt)}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchTickets } from "@/features/tickets/tickets.api";
 import { useAuth } from "@/features/auth/useAuth";
+import { priorityLabel, priorityVariant } from "@/features/tickets/ticket-labels";
 
 function Dashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -29,19 +30,17 @@ function Dashboard() {
   }
 
   const stats = {
-    open: tickets?.filter((t) => t.status === "OPEN").length ?? 0,
+    open: tickets?.filter((t) => t.status === "open").length ?? 0,
     inProgress:
-      tickets?.filter((t) => t.status === "IN_PROGRESS").length ?? 0,
+      tickets?.filter((t) => t.status === "in_progress").length ?? 0,
     critical:
-      tickets?.filter((t) => t.priority === "CRITICAL").length ?? 0,
+      tickets?.filter((t) => t.priority === "critical").length ?? 0,
     resolved:
-      tickets?.filter(
-        (t) => t.status === "RESOLVED" || t.status === "CLOSED"
-      ).length ?? 0,
+      tickets?.filter((t) => t.status === "closed").length ?? 0,
   };
 
   const criticalTickets =
-    tickets?.filter((t) => t.priority === "CRITICAL").slice(0, 3) ?? [];
+    tickets?.filter((t) => t.priority === "critical").slice(0, 3) ?? [];
 
   return (
     <div className="space-y-6">
@@ -83,9 +82,9 @@ function Dashboard() {
         />
 
         <DashboardCard
-          title="Resolved"
+          title="Closed"
           value={String(stats.resolved)}
-          description="This month"
+          description="Successfully closed"
           icon={<CheckCircle2 className="h-4 w-4" />}
         />
       </div>
@@ -106,8 +105,7 @@ function Dashboard() {
               {criticalTickets.map((ticket) => (
                 <DashboardTicketItem
                   key={ticket.id}
-                  title={ticket.title}
-                  ticketNumber={ticket.number}
+                  title={ticket.name}
                   priority={ticket.priority}
                 />
               ))}
@@ -159,34 +157,20 @@ function DashboardCard({
 
 interface DashboardTicketItemProps {
   title: string;
-  ticketNumber: string;
-  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  priority: "low" | "moderate" | "high" | "critical";
 }
 
 function DashboardTicketItem({
   title,
-  ticketNumber,
   priority,
 }: DashboardTicketItemProps) {
-  const priorityVariant: Record<
-    "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
-    "destructive" | "default" | "secondary" | "outline"
-  > = {
-    CRITICAL: "destructive",
-    HIGH: "default",
-    MEDIUM: "secondary",
-    LOW: "outline",
-  };
-
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
       <div className="min-w-0">
         <p className="truncate font-medium">{title}</p>
-
-        <p className="text-sm text-muted-foreground">{ticketNumber}</p>
       </div>
 
-      <Badge variant={priorityVariant[priority]}>{priority}</Badge>
+      <Badge variant={priorityVariant[priority]}>{priorityLabel[priority]}</Badge>
     </div>
   );
 }
