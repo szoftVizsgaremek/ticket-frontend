@@ -6,21 +6,28 @@ import {
   Sun,
   Ticket,
   User,
+  UserPlus,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Profile", to: "/profile", icon: User },
-  { label: "My Tickets", to: "/my-tickets", icon: Ticket },
-  { label: "Create Ticket", to: "/create-ticket", icon: PlusCircle },
-];
+import { usePermissions } from "@/features/auth/usePermissions";
+import { PERMISSIONS } from "@/features/auth/permissions";
 
 function Navbar() {
   const { toggleTheme } = useTheme();
+  const { can } = usePermissions();
+
+  const navItems = [
+    { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+    { label: "Profile", to: "/profile", icon: User },
+    { label: "My Tickets", to: "/my-tickets", icon: Ticket },
+    { label: "Create Ticket", to: "/create-ticket", icon: PlusCircle },
+    ...(can(PERMISSIONS.USER_CREATE)
+      ? [{ label: "New User", to: "/create-user", icon: UserPlus }]
+      : []),
+  ];
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">

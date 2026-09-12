@@ -15,6 +15,7 @@ export const PERMISSIONS = {
 
   USER_VIEW: "user:view",
   USER_EDIT: "user:edit",
+  USER_CREATE: "user:create",
 
   ADMIN_ACCESS: "admin:access",
 } as const;
@@ -37,6 +38,7 @@ const rolePermissions: Record<Role, Permission[]> = {
 
     PERMISSIONS.USER_VIEW,
     PERMISSIONS.USER_EDIT,
+    PERMISSIONS.USER_CREATE,
 
     PERMISSIONS.ADMIN_ACCESS,
   ],

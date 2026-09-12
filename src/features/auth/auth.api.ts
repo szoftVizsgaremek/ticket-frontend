@@ -1,5 +1,10 @@
 import { apiFetch } from "@/lib/api-client";
-import type { LoginRequest, RegisterRequest, User } from "./auth.types";
+import type {
+  ForgotPasswordRequest,
+  LoginRequest,
+  ResetPasswordRequest,
+  User,
+} from "./auth.types";
 
 export async function fetchCurrentUser(): Promise<User | null> {
   try {
@@ -16,10 +21,21 @@ export async function login(credentials: LoginRequest): Promise<User> {
   });
 }
 
-export async function register(credentials: RegisterRequest): Promise<User> {
-  return apiFetch<User>("/api/auth/register", {
+export async function forgotPassword(
+  input: ForgotPasswordRequest
+): Promise<void> {
+  await apiFetch("/api/auth/forgot-password", {
     method: "POST",
-    body: JSON.stringify(credentials),
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resetPassword(
+  input: ResetPasswordRequest
+): Promise<void> {
+  await apiFetch("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }
 

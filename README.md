@@ -55,11 +55,13 @@ backend README, e.g.:
 ## Pages
 
 - **/login** — sign in with username + password
-- **/register** — create an account
+- **/forgot-password** — request an email password-reset link
+- **/reset-password** — set a new password from a reset link
 - **/dashboard** — stats + critical tickets
 - **/my-tickets** — tickets you reported or are assigned to
 - **/tickets/:id** — ticket detail with comments and attachments
 - **/create-ticket** — report a new server/computer ticket
+- **/create-user** — admins create new accounts (IT-managed)
 
 ## How the frontend talks to the backend
 

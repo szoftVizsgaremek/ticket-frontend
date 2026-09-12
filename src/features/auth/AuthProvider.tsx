@@ -5,9 +5,8 @@ import {
   fetchCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
-  register as registerRequest,
 } from "./auth.api";
-import type { LoginRequest, RegisterRequest, User } from "./auth.types";
+import type { LoginRequest, User } from "./auth.types";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -42,12 +41,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(currentUser);
   }
 
-  async function signUp(credentials: RegisterRequest) {
-    const currentUser = await registerRequest(credentials);
-
-    setUser(currentUser);
-  }
-
   async function logout() {
     await logoutRequest();
 
@@ -61,7 +54,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isAuthenticated: !!user,
         isLoading,
         login,
-        signUp,
         logout,
       }}
     >

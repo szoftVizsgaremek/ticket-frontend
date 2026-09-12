@@ -20,10 +20,20 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface RegisterRequest {
+export interface CreateUserRequest {
   name: string;
   username: string;
   email: string;
   password: string;
-  birthDate?: string;
+  role: Role;
+  birthDate?: string | null;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
 }
