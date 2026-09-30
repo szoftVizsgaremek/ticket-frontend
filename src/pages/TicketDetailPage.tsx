@@ -1,28 +1,55 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Clock3, Download, Monitor, Paperclip, Server, Send, Upload } from "lucide-react";
+import { Popover } from "@base-ui/react/popover";
+import {
+  CheckCircle2,
+  Clock3,
+  Download,
+  Loader2,
+  Paperclip,
+  Search,
+  Send,
+  Upload,
+  UserPlus,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchTicket, addComment, updateTicket, uploadAttachment } from "@/features/tickets/tickets.api";
+import {
+  fetchTicket,
+  addComment,
+  addTicketWatcher,
+  removeTicketWatcher,
+  updateTicket,
+  uploadAttachment,
+} from "@/features/tickets/tickets.api";
+import { fetchUsers } from "@/features/users/users.api";
 import { API_BASE_URL } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/useAuth";
+import { usePermissions } from "@/features/auth/usePermissions";
+import { PERMISSIONS } from "@/features/auth/permissions";
+import { ROLE_LABELS } from "@/features/auth/auth.types";
 import {
   formatDate,
   formatFileSize,
   priorityLabel,
   priorityVariant,
   statusLabel,
+  typeIcon,
   typeLabel,
 } from "@/features/tickets/ticket-labels";
+import type { TicketDetail, TicketUser } from "@/features/tickets/ticket.types";
 
 function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const ticketId = Number(id);
   const { user } = useAuth();
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -32,6 +59,61 @@ function TicketDetailPage() {
     queryKey: ["tickets", ticketId],
     queryFn: () => fetchTicket(ticketId),
     enabled: Number.isFinite(ticketId),
+  });
+
+  // A switch has to answer the click, and a round trip plus a refetch is long
+  // enough to read as a dropped click. So the list is updated locally first and
+  // rolled back if the request fails.
+  const watcherMutation = useMutation({
+    mutationFn: ({
+      userId,
+      watch,
+    }: {
+      userId: number;
+      watch: boolean;
+      user: TicketUser;
+    }) =>
+      watch
+        ? addTicketWatcher(ticketId, userId)
+        : removeTicketWatcher(ticketId, userId),
+
+    onMutate: async ({ userId, watch, user }) => {
+      await queryClient.cancelQueries({ queryKey: ["tickets", ticketId] });
+
+      const previous = queryClient.getQueryData<TicketDetail>([
+        "tickets",
+        ticketId,
+      ]);
+
+      if (previous) {
+        queryClient.setQueryData<TicketDetail>(["tickets", ticketId], (old) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            watchers: watch
+              ? [...old.watchers, user].sort((a, b) =>
+                  a.name.localeCompare(b.name)
+                )
+              : old.watchers.filter((w) => w.id !== userId),
+          };
+        });
+      }
+
+      return { previous };
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tickets", ticketId], context.previous);
+      }
+    },
+
+    // Settles either way, so a failed optimistic update is replaced by the
+    // truth rather than left as a guess.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets", ticketId] });
+    },
   });
 
   const commentMutation = useMutation({
@@ -82,16 +164,26 @@ function TicketDetailPage() {
     );
   }
 
+  // Reporter and assignee can always drive their own ticket; roles with
+  // ticket:edit (area managers, superadmins) can drive any of them.
   const canManage =
-    user &&
+    !!user &&
     (ticket.uploadedBy === user.id ||
       ticket.assigneeId === user.id ||
-      user.role === "admin" ||
-      user.role === "area_manager");
-  const TypeIcon = ticket.type === "servers" ? Server : Monitor;
+      can(PERMISSIONS.TICKET_EDIT));
+  const TypeIcon = typeIcon[ticket.type];
 
   return (
     <div className="space-y-6">
+      {/* <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Go Back
+      </Button> */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{ticket.name}</h1>
 
@@ -148,6 +240,14 @@ function TicketDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* <WatchersCard
+        ticket={ticket}
+        isPending={watcherMutation.isPending}
+        onToggle={(watcher, watch) =>
+          watcherMutation.mutate({ userId: watcher.id, watch, user: watcher })
+        }
+      /> */}
 
       {canManage && ticket.status !== "closed" && (
         <Card>
@@ -316,5 +416,175 @@ function TicketDetailPage() {
     </div>
   );
 }
+
+// interface WatchersCardProps {
+//   ticket: TicketDetail;
+//   isPending: boolean;
+//   onToggle: (watcher: TicketUser, watch: boolean) => void;
+// }
+
+// /**
+//  * Who is watching this ticket, and the switch that changes it.
+//  *
+//  * The list is seeded by the backend — every technician and operator watches a
+//  * new ticket without anybody adding them — so the switches are for taking a
+//  * watcher off, and for putting one on who is not a watcher by role.
+//  */
+// function WatchersCard({ ticket, isPending, onToggle }: WatchersCardProps) {
+//   const [open, setOpen] = useState(false);
+//   const [search, setSearch] = useState("");
+
+//   // Only fetched once the popover is opened: most visits to a ticket never
+//   // touch the watcher list, and /api/users is a full user list.
+//   const { data: users } = useQuery({
+//     queryKey: ["users"],
+//     queryFn: fetchUsers,
+//     enabled: open,
+//   });
+
+//   const watching = useMemo(
+//     () => new Set(ticket?.watchers?.map((w) => w.id)),
+//     [ticket.watchers]
+//   );
+
+//   const candidates = useMemo(() => {
+//     const term = search.trim().toLowerCase();
+
+//     return (users ?? [])
+//       .filter(
+//         (u) =>
+//           !term ||
+//           u.name.toLowerCase().includes(term) ||
+//           u.username.toLowerCase().includes(term)
+//       )
+//       .sort((a, b) => a.name.localeCompare(b.name));
+//   }, [users, search]);
+
+  // return (
+  //   <Card>
+  //     <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+  //       <CardTitle>Watchers ({ticket.watchers.length})</CardTitle>
+
+  //       <Popover.Root
+  //         open={open}
+  //         onOpenChange={(next) => {
+  //           setOpen(next);
+  //           // Leaving the search text behind would hide people the next time
+  //           // the popover is opened.
+  //           if (!next) setSearch("");
+  //         }}
+  //       >
+          {/* <Popover.Trigger
+            render={
+              <Button variant="outline" size="xs">
+                <UserPlus />
+                Add watcher
+              </Button>
+            }
+          /> */}
+
+          // <Popover.Portal>
+          //   <Popover.Positioner
+          //     align="end"
+          //     sideOffset={8}
+          //     className="z-50"
+          //   >
+          //     <Popover.Popup className="w-80 rounded-xl border bg-popover text-popover-foreground shadow-lg outline-none">
+          //       <div className="relative border-b p-2">
+          //         <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+
+                  {/* <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search users..."
+                    aria-label="Search users"
+                    className="pl-8"
+                  />
+                </div>
+
+                {candidates.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    No users found.
+                  </p>
+                ) : (
+                  <ul className="max-h-72 overflow-y-auto p-1">
+                    {candidates.map((candidate) => {
+                      const isWatching = watching.has(candidate.id);
+
+                      return (
+                        <li
+                          key={candidate.id}
+                          className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {candidate.name}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {ROLE_LABELS[candidate.role]}
+                            </p>
+                          </div>
+
+                          <Switch
+                            checked={isWatching}
+                            disabled={isPending}
+                            aria-label={
+                              isWatching
+                                ? `Stop ${candidate.name} watching this ticket`
+                                : `Watch this ticket as ${candidate.name}`
+                            }
+                            onCheckedChange={(watch) =>
+                              onToggle(candidate, watch)
+                            }
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </Popover.Popup>
+            </Popover.Positioner>
+          </Popover.Portal>
+        </Popover.Root>
+      </CardHeader> */}
+
+      {/* <CardContent> */}
+        {/* {ticket.watchers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nobody is watching this ticket. Watchers are notified when its status
+            changes.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {ticket.watchers.map((watcher) => (
+              <li
+                key={watcher.id}
+                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{watcher.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {ROLE_LABELS[watcher.role]}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  {isPending && <Loader2 className="size-3.5 animate-spin" />}
+
+                  <Switch
+                    checked
+                    disabled={isPending}
+                    aria-label={`Stop ${watcher.name} watching this ticket`}
+                    onCheckedChange={() => onToggle(watcher, false)}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+        } */ }
 
 export default TicketDetailPage;

@@ -1,6 +1,7 @@
+import { useEffect, useMemo } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -19,6 +20,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createTicket } from "@/features/tickets/tickets.api";
 import { fetchUsers } from "@/features/users/users.api";
+import { useAuth } from "@/features/auth/useAuth";
+import { ROLE_LABELS } from "@/features/auth/auth.types";
+import { typeLabel } from "@/features/tickets/ticket-labels";
+import {
+  assignableRolesFor,
+  routableTypesFor,
+  routingHint,
+} from "@/features/tickets/ticket-assignment";
 
 const createTicketSchema = z.object({
   name: z
@@ -29,7 +38,7 @@ const createTicketSchema = z.object({
     .string()
     .max(250, "Description must be less than 250 characters")
     .optional(),
-  type: z.enum(["servers", "computers"], {
+  type: z.enum(["thermal", "software", "hardware"], {
     message: "Type is required",
   }),
   priority: z.enum(["low", "moderate", "high", "critical"]),
@@ -48,18 +57,11 @@ const priorities = [
 function CreateTicketPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data: users } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
-  });
-
-  const mutation = useMutation({
-    mutationFn: createTicket,
-    onSuccess: (ticket) => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      navigate(`/tickets/${ticket.id}`);
-    },
   });
 
   const form = useForm<CreateTicketFormValues>({
@@ -67,9 +69,64 @@ function CreateTicketPage() {
     defaultValues: {
       name: "",
       description: "",
-      type: "servers",
+      type: "thermal",
       priority: "low",
       assigneeId: "",
+    },
+  });
+
+  // A thermal/hardware ticket only goes to an engineer, and only an operator
+  // may route one; software only goes to IT, and only a technician may route
+  // one. Area managers and above route anything to anyone.
+  const role = user?.role;
+  const routableTypes = routableTypesFor(role);
+  const selectedType = useWatch({ control: form.control, name: "type" });
+  const allowedAssigneeRoles = assignableRolesFor(selectedType, role);
+
+  const assignableUsers = useMemo(
+    () =>
+      (users ?? []).filter(
+        (candidate) =>
+          allowedAssigneeRoles === "all" ||
+          allowedAssigneeRoles.includes(candidate.role)
+      ),
+    [users, allowedAssigneeRoles]
+  );
+
+  // Keep the current assignee selectable if it is still legal, otherwise fall
+  // back to unassigned so the form never submits a value the backend will
+  // reject.
+  const selectedAssigneeId = useWatch({
+    control: form.control,
+    name: "assigneeId",
+  });
+
+  useEffect(() => {
+    if (!selectedAssigneeId) {
+      return;
+    }
+
+    if (
+      !assignableUsers.some(
+        (candidate) => String(candidate.id) === selectedAssigneeId
+      )
+    ) {
+      form.setValue("assigneeId", "");
+    }
+  }, [selectedAssigneeId, assignableUsers, form]);
+
+  // Switching role context can strand the ticket on an illegal type.
+  useEffect(() => {
+    if (routableTypes.length > 0 && !routableTypes.includes(selectedType)) {
+      form.setValue("type", routableTypes[0]);
+    }
+  }, [routableTypes, selectedType, form]);
+
+  const mutation = useMutation({
+    mutationFn: createTicket,
+    onSuccess: (ticket) => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      navigate(`/tickets/${ticket.id}`);
     },
   });
 
@@ -154,10 +211,17 @@ function CreateTicketPage() {
                           {...field}
                           className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
                         >
-                          <option value="servers">Servers</option>
-                          <option value="computers">Computers</option>
+                          {routableTypes.map((type) => (
+                            <option key={type} value={type}>
+                              {typeLabel[type]}
+                            </option>
+                          ))}
                         </select>
                       </FormControl>
+
+                      <p className="text-xs text-muted-foreground">
+                        {routingHint(selectedType)}
+                      </p>
 
                       <FormMessage />
                     </FormItem>
@@ -194,7 +258,14 @@ function CreateTicketPage() {
                   name="assigneeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assignee</FormLabel>
+                      <FormLabel>
+                        Assignee{" "}
+                        {allowedAssigneeRoles === "all" ? null : (
+                          <span className="text-muted-foreground">
+                            ({ROLE_LABELS[allowedAssigneeRoles[0]]})
+                          </span>
+                        )}
+                      </FormLabel>
 
                       <FormControl>
                         <select
@@ -203,13 +274,23 @@ function CreateTicketPage() {
                         >
                           <option value="">Unassigned</option>
 
-                          {users?.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.name} ({user.username})
+                          {assignableUsers.map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>
+                              {candidate.name} ({candidate.username})
                             </option>
                           ))}
                         </select>
                       </FormControl>
+
+                      {assignableUsers.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No{" "}
+                          {allowedAssigneeRoles === "all"
+                            ? "users"
+                            : ROLE_LABELS[allowedAssigneeRoles[0]].toLowerCase()}{" "}
+                          accounts exist yet.
+                        </p>
+                      )}
 
                       <FormMessage />
                     </FormItem>

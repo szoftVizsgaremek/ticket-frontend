@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, Monitor, Server, Ticket as TicketIcon } from "lucide-react";
+import { CheckCircle2, Clock3, Ticket as TicketIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import {
@@ -14,6 +14,7 @@ import {
   priorityLabel,
   priorityVariant,
   statusLabel,
+  typeIcon,
   typeLabel,
 } from "@/features/tickets/ticket-labels";
 
@@ -64,7 +65,7 @@ interface TicketRowProps {
 }
 
 function TicketRow({ ticket }: TicketRowProps) {
-  const TypeIcon = ticket.type === "servers" ? Server : Monitor;
+  const TypeIcon = typeIcon[ticket.type];
 
   return (
     <Link

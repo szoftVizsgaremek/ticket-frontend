@@ -1,6 +1,7 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
+  LogOut,
   Moon,
   PlusCircle,
   Sun,
@@ -8,33 +9,74 @@ import {
   User,
   UserPlus,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/notification-bell";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/features/auth/useAuth";
 import { usePermissions } from "@/features/auth/usePermissions";
 import { PERMISSIONS } from "@/features/auth/permissions";
+import { homeRouteFor } from "@/features/auth/role-routing";
+
+interface NavItem {
+  label: string;
+  to: string;
+  icon: LucideIcon;
+  visible: boolean;
+}
 
 function Navbar() {
   const { toggleTheme } = useTheme();
   const { can } = usePermissions();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const navItems = [
-    { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-    { label: "Profile", to: "/profile", icon: User },
-    { label: "My Tickets", to: "/my-tickets", icon: Ticket },
-    { label: "Create Ticket", to: "/create-ticket", icon: PlusCircle },
-    ...(can(PERMISSIONS.USER_CREATE)
-      ? [{ label: "New User", to: "/create-user", icon: UserPlus }]
-      : []),
-  ];
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
+  const navItems: NavItem[] = [
+    {
+      label: "Dashboard",
+      to: "/dashboard",
+      icon: LayoutDashboard,
+      visible: can(PERMISSIONS.DASHBOARD_VIEW),
+    },
+    {
+      label: "Profile",
+      to: "/profile",
+      icon: User,
+      visible: true,
+    },
+    {
+      label: "My Tickets",
+      to: "/my-tickets",
+      icon: Ticket,
+      visible: can(PERMISSIONS.TICKET_VIEW),
+    },
+    {
+      label: "Create Ticket",
+      to: "/create-ticket",
+      icon: PlusCircle,
+      visible: can(PERMISSIONS.TICKET_CREATE),
+    },
+    {
+      label: "New User",
+      to: "/create-user",
+      icon: UserPlus,
+      visible: can(PERMISSIONS.USER_CREATE),
+    },
+  ].filter((item) => item.visible);
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4">
         <div className="flex min-w-0 items-center gap-6">
           <Link
-            to="/dashboard"
+            to={homeRouteFor(user?.role)}
             className="shrink-0 font-semibold tracking-tight"
           >
             Ticket System
@@ -61,16 +103,31 @@ function Navbar() {
           </nav>
         </div>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-        >
-          <Sun className="hidden dark:block" />
-          <Moon className="dark:hidden" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {can(PERMISSIONS.NOTIFICATION_VIEW) && <NotificationBell />}
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
+            <Sun className="hidden dark:block" />
+            <Moon className="dark:hidden" />
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut />
+          </Button>
+        </div>
       </div>
     </header>
   );

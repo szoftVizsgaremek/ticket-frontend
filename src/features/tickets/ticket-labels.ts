@@ -1,3 +1,6 @@
+import { Cpu, Laptop, Thermometer } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 import type { TicketPriority, TicketStatus, TicketType } from "./ticket.types";
 
 export const priorityLabel: Record<TicketPriority, string> = {
@@ -24,8 +27,15 @@ export const statusLabel: Record<TicketStatus, string> = {
 };
 
 export const typeLabel: Record<TicketType, string> = {
-  servers: "Servers",
-  computers: "Computers",
+  thermal: "Thermal",
+  software: "Software",
+  hardware: "Hardware",
+};
+
+export const typeIcon: Record<TicketType, LucideIcon> = {
+  thermal: Thermometer,
+  software: Laptop,
+  hardware: Cpu,
 };
 
 export function formatDate(value: string | null | undefined): string {

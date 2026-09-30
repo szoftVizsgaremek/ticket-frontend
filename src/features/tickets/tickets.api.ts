@@ -6,6 +6,7 @@ import type {
   TicketComment,
   TicketDetail,
   UpdateTicketInput,
+  WatcherList,
 } from "./ticket.types";
 
 export async function fetchTickets(): Promise<Ticket[]> {
@@ -47,6 +48,29 @@ export async function addComment(
     method: "POST",
     body: JSON.stringify({ content }),
   });
+}
+
+// Adding somebody who already watches is answered with the unchanged list
+// rather than a conflict, so a switch that fires on every click is safe to
+// retry.
+export async function addTicketWatcher(
+  ticketId: number,
+  userId: number
+): Promise<WatcherList> {
+  return apiFetch<WatcherList>(`/api/tickets/${ticketId}/watchers`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function removeTicketWatcher(
+  ticketId: number,
+  userId: number
+): Promise<WatcherList> {
+  return apiFetch<WatcherList>(
+    `/api/tickets/${ticketId}/watchers/${userId}`,
+    { method: "DELETE" }
+  );
 }
 
 export async function uploadAttachment(

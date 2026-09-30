@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Moon, Sun } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/features/auth/useAuth";
+import { homeRouteFor } from "@/features/auth/role-routing";
 
 const loginSchema = z.object({
   username: z
@@ -38,7 +39,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toggleTheme } = useTheme();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
 
   const {
     register,
@@ -57,9 +58,12 @@ function LoginPage() {
     setSubmitError(null);
 
     try {
-      await login(values);
+      const currentUser = await login(values);
+
+      // An admin has no dashboard, so the intended destination depends on who
+      // just signed in.
       const fromState = location.state as { from?: Location } | null;
-      navigate(fromState?.from?.pathname ?? "/dashboard");
+      navigate(fromState?.from?.pathname ?? homeRouteFor(currentUser.role));
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Unable to sign in"
@@ -67,6 +71,10 @@ function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (user) {
+    return <Navigate to={homeRouteFor(user.role)} replace />;
   }
 
   return (

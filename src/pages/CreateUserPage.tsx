@@ -17,8 +17,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createUser } from "@/features/users/users.api";
+import { useAuth } from "@/features/auth/useAuth";
 import { usePermissions } from "@/features/auth/usePermissions";
 import { PERMISSIONS } from "@/features/auth/permissions";
+import {
+  CREATABLE_ROLES,
+  ROLE_LABELS,
+  ROLES,
+  type Role,
+} from "@/features/auth/auth.types";
+import { homeRouteFor } from "@/features/auth/role-routing";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Name is required").max(70),
@@ -38,28 +46,43 @@ const createUserSchema = z.object({
   password: z
     .string()
     .min(6, "Password must be at least 6 characters"),
-  role: z.enum(["user", "area_manager", "admin"]),
+  role: z.enum([
+    ROLES.SUPERADMIN,
+    ROLES.ADMIN,
+    ROLES.AREA_MANAGER,
+    ROLES.OPERATOR,
+    ROLES.TECHNICIAN,
+    ROLES.ENGINEER,
+    ROLES.IT,
+  ]),
   birthDate: z.string().optional(),
 });
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
-const roles = [
-  { id: "user", name: "User" },
-  { id: "area_manager", name: "Area manager" },
-  { id: "admin", name: "Admin" },
-] as const;
-
 function CreateUserPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { can } = usePermissions();
+  const { user } = useAuth();
+
+  // An admin can only mint user-level accounts (operator, technician,
+  // engineer, IT); a superadmin can pick any role. The backend re-checks this,
+  // so it is a UX affordance, not the guard. The permission check below means we
+  // are always an admin or a superadmin by the time this renders; the fallback
+  // only exists to give the form a valid default while `user` is still loading.
+  const assignableRoles: Role[] = user
+    ? CREATABLE_ROLES[user.role]
+    : CREATABLE_ROLES[ROLES.ADMIN];
 
   const mutation = useMutation({
     mutationFn: createUser,
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      navigate(`/dashboard`, {
+
+      // Admins have no dashboard to return to, so send them straight back
+      // here to provision the next account.
+      navigate(homeRouteFor(user?.role), {
         state: { message: `Created user ${created.username}` },
       });
     },
@@ -72,7 +95,7 @@ function CreateUserPage() {
       username: "",
       email: "",
       password: "",
-      role: "user",
+      role: assignableRoles[0] ?? ROLES.OPERATOR,
       birthDate: "",
     },
   });
@@ -200,9 +223,9 @@ function CreateUserPage() {
                           {...field}
                           className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
                         >
-                          {roles.map((role) => (
-                            <option key={role.id} value={role.id}>
-                              {role.name}
+                          {assignableRoles.map((role) => (
+                            <option key={role} value={role}>
+                              {ROLE_LABELS[role]}
                             </option>
                           ))}
                         </select>

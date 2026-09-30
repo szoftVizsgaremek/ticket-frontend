@@ -6,7 +6,7 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  login: (credentials: LoginRequest) => Promise<void>;
+  login: (credentials: LoginRequest) => Promise<User>;
   logout: () => Promise<void>;
 }
 

@@ -1,15 +1,17 @@
+import type { Role } from "@/features/auth/auth.types";
+
 export type TicketPriority = "low" | "moderate" | "high" | "critical";
 
 export type TicketStatus = "open" | "in_progress" | "closed";
 
-export type TicketType = "servers" | "computers";
+export type TicketType = "thermal" | "software" | "hardware";
 
 export interface TicketUser {
   id: number;
   name: string;
   username: string;
   email: string;
-  role: string;
+  role: Role;
 }
 
 export interface TicketComment {
@@ -53,9 +55,14 @@ export interface Ticket {
 }
 
 export interface TicketDetail extends Ticket {
+  watchers: TicketUser[];
   comments: TicketComment[];
   attachments: TicketAttachment[];
 }
+
+// export interface WatcherList {
+//   watchers: TicketUser[];
+// }
 
 export interface CreateTicketInput {
   name: string;
