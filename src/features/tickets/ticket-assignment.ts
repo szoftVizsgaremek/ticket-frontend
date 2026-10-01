@@ -73,11 +73,11 @@ export function assignableRolesFor(
 }
 
 /** One-line explanation of who may route `type` and to whom. */
-export function routingHint(type: TicketType): string {
-  const rule = TICKET_ASSIGNMENT_RULES[type];
-  const assigners = rule.assignerRoles
-    .map((role) => ROLE_LABELS[role].toLowerCase())
-    .join(" or ");
+// export function routingHint(type: TicketType): string {
+//   const rule = TICKET_ASSIGNMENT_RULES[type];
+//   const assigners = rule.assignerRoles
+//     .map((role) => ROLE_LABELS[role].toLowerCase())
+//     .join(" or ");
 
-  return `Routed by an ${assigners} to an ${ROLE_LABELS[rule.assigneeRole].toLowerCase()}`;
-}
+//   return `Routed by an ${assigners} to an ${ROLE_LABELS[rule.assigneeRole].toLowerCase()}`;
+// }

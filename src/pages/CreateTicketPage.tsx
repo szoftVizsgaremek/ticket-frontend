@@ -26,7 +26,7 @@ import { typeLabel } from "@/features/tickets/ticket-labels";
 import {
   assignableRolesFor,
   routableTypesFor,
-  routingHint,
+  // routingHint,
 } from "@/features/tickets/ticket-assignment";
 
 const createTicketSchema = z.object({
@@ -219,9 +219,9 @@ function CreateTicketPage() {
                         </select>
                       </FormControl>
 
-                      <p className="text-xs text-muted-foreground">
+                      {/* <p className="text-xs text-muted-foreground">
                         {routingHint(selectedType)}
-                      </p>
+                      </p> */}
 
                       <FormMessage />
                     </FormItem>
