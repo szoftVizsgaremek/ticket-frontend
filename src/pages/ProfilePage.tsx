@@ -1,13 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/features/auth/useAuth";
 import { ROLE_LABELS } from "@/features/auth/auth.types";
+// TODO: assumption. changePassword POSTs { recentPassword, newPassword }
+// for the logged-in user. Point it at your real API function.
+import { changePassword } from "@/features/auth/auth.api";
 // TODO: assumption. fetchTickets returns the ticket list (every ticket the
 // user may see). Point it at your real API function.
 import { fetchTickets } from "@/features/tickets/tickets.api";
@@ -31,6 +36,7 @@ function ProfilePage() {
 
       <AccountCard />
       <MyTicketsCard userId={user.id} />
+      <ChangePasswordCard />
     </div>
   );
 }
@@ -160,6 +166,120 @@ function MyTicketsCard({ userId }: { userId: number }) {
             ))}
           </ul>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Change-password card, kept as the last card on the page.
+ *
+ * The user is already logged in, so the backend knows who they are from the
+ * session. The recent password is the proof that it is really them at the
+ * keyboard, not someone using a left-open browser.
+ */
+function ChangePasswordCard() {
+  const [recentPassword, setRecentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => changePassword({ recentPassword, newPassword }),
+    onSuccess: () => {
+      // Clear the fields so passwords do not linger in component state.
+      setRecentPassword("");
+      setNewPassword("");
+      setConfirm("");
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.reset(); // drop a previous success/error message
+
+    // Quick checks for instant feedback. The server enforces the real rules.
+    if (newPassword.length < 8) {
+      setClientError("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirm) {
+      setClientError("New password and confirmation do not match.");
+      return;
+    }
+    if (newPassword === recentPassword) {
+      setClientError("New password must be different from the recent one.");
+      return;
+    }
+
+    setClientError(null);
+    mutation.mutate();
+  };
+
+  // Client-side error wins; otherwise show whatever the server said.
+  const errorMessage =
+    clientError ??
+    (mutation.isError
+      ? mutation.error instanceof Error
+        ? mutation.error.message
+        : "Unable to change password."
+      : null);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Reset password</CardTitle>
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={handleSubmit} className="max-w-sm space-y-3">
+          {/* autoComplete hints let password managers fill and save correctly */}
+          <Input
+            type="password"
+            value={recentPassword}
+            onChange={(e) => setRecentPassword(e.target.value)}
+            placeholder="Recent password"
+            aria-label="Recent password"
+            autoComplete="current-password"
+          />
+          <Input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password"
+            aria-label="New password"
+            autoComplete="new-password"
+          />
+          <Input
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Confirm new password"
+            aria-label="Confirm new password"
+            autoComplete="new-password"
+          />
+
+          {errorMessage && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {errorMessage}
+            </p>
+          )}
+
+          {mutation.isSuccess && (
+            <p className="text-sm text-muted-foreground">Password updated.</p>
+          )}
+
+          <Button
+            type="submit"
+            size="sm"
+            disabled={
+              !recentPassword || !newPassword || !confirm || mutation.isPending
+            }
+          >
+            {mutation.isPending && <Loader2 className="animate-spin" />}
+            Confirm
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

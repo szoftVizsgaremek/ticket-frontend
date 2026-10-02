@@ -1,8 +1,8 @@
 import { apiFetch } from "@/lib/api-client";
 import type {
+  ChangePasswordRequest,
   ForgotPasswordRequest,
   LoginRequest,
-  ResetPasswordRequest,
   User,
 } from "./auth.types";
 
@@ -30,10 +30,10 @@ export async function forgotPassword(
   });
 }
 
-export async function resetPassword(
-  input: ResetPasswordRequest
+export async function changePassword(
+  input: ChangePasswordRequest
 ): Promise<void> {
-  await apiFetch("/api/auth/reset-password", {
+  await apiFetch("/api/auth/change-password", {
     method: "POST",
     body: JSON.stringify(input),
   });
